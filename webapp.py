@@ -12,7 +12,7 @@ October 2009, February 2015
 """
 
 import socket
-import urllib.request
+from urllib import request, error
 
 class app:
 
@@ -34,21 +34,28 @@ class app:
         Returns the HTTP code for the reply, and an HTML page.
         """
 
-        return ("200 OK", "<html><body><h1>" +
+        return ("200 OK", bytes("<html><body><h1>" +
                           "Bienvenido, en cache tengo: </h1> "
-                          + self.printDic() + "</body></html>")
+                          + self.printDic() + "</body></html>", 'utf-8'))
 
 class cache(app):
 
     def process(self, method, parsedRequest):
         if method == 'GET':
             if parsedRequest in webApp.cacheDic:
-                return("200 OK", webApp.cacheDic[parsedRequest].read)
+                try:
+                    return("200 OK", webApp.cacheDic[parsedRequest].read())
+                except error.URLError:
+                    return("400 Bad Request", bytes("Fav.ico", 'utf-8'))
             else:
-                url = "http://" + parsedRequest
-                webApp.cacheDic[parsedRequest] = urllib.urlopen(url)
-                return("200 OK", webApp.cacheDic[parsedRequest].read)
-        return("404 Not Found", "Sin hacer aun")
+                url = "http:/" + parsedRequest
+                try:
+                    webApp.cacheDic[parsedRequest] = request.urlopen(url)
+                    to_return = webApp.cacheDic[parsedRequest].read()
+                    return("200 OK", to_return)
+                except error.URLError:
+                    return("400 Bad Request", bytes("Fav.ico", 'utf-8'))
+        return("404 Not Found", bytes("Solo se puede pedir GET", 'utf-8'))
 
 
 class webApp:
@@ -89,8 +96,8 @@ class webApp:
             else:
                 (returnCode, htmlAnswer) = self.cache.process(method, parsedRequest)
             print('Answering back...')
-            recvSocket.send(bytes("HTTP/1.1 " + returnCode + " \r\n\r\n"
-                            + htmlAnswer + "\r\n", 'utf-8'))
+            recvSocket.send(bytes("HTTP/1.1 " + returnCode + " \r\n\r\n", 'utf-8')
+                            + htmlAnswer + bytes("\r\n", 'utf-8'))
             recvSocket.close()
 
 if __name__ == "__main__":
